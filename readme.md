@@ -100,7 +100,7 @@ done
 
 ### Evaluation of integration models
 ```shell
-python src/train_binary_grim.py \
+python src/train_binary_hybrid.py \
     --data data/GM12878/train_test_allneg_600.npz \
     --model DanQ_ExplaiNN \
     --linear_units 14600 \
