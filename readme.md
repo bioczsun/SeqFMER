@@ -26,7 +26,6 @@ wget "https://hgdownload.cse.ucsc.edu/goldenpath/hg38/bigZips/hg38.fa.gz"
 
 gzip -d hg38.fa.gz && cd ..
 
-
 # Generates a bed file with 4096bp windows
 bedtools makewindows -g ref/hg38.chrom.size -w 4096 > ref/hg38_4096.bed
 
@@ -39,9 +38,7 @@ sort -k1,1 -k2,2n ref/hg38_4096.bed > ref/hg38_4096_sorted.bed
 ```shell
 bedops -n 1 ref/hg38_4096_sorted.bed GM12878/ENCFF470YYO.bed > GM12878/nopeaks.bed;
 
-cd ..
-
-mkdir -p train_results/GM12878;
+cd .. && mkdir -p train_results/GM12878
 ```
 
 ### Segmentation of dataset
