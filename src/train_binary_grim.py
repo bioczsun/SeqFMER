@@ -98,15 +98,10 @@ model.to(device)
 criterion = nn.BCELoss()
 optimizer = torch.optim.Adam(
     model.parameters(),
-    # [param for name, param in model.named_parameters() if 'explainn' not in name and "conv1" not in name],
     lr=float(args.lr)
 )
-# optimizer = torch.optim.Adam(model.parameters(),lr=float(args.lr),eps=0.00001)
 scheduler = torch.optim.lr_scheduler.StepLR(optimizer=optimizer,step_size=2,gamma=0.8)
-# min_lr = 0.00001
-# def lr_lambda(epoch):
-#     return max(0.1 ** (epoch // 10), min_lr / optimizer.defaults['lr'])
-# lambda_lr_scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda)
+
 
 model_save_path = "%s_%s_%s_%s_allneg"%(args.model,args.seed,args.seqlen,args.activate)
 early_stopping = utils.EarlyStopping(save_path=args.outpath,model_name=model_save_path,patience=3)
@@ -219,12 +214,6 @@ def train(model,train_dataloader,test_dataloader,optimizer,criterion,epochs,earl
                 test_true.extend(test_label.cpu().numpy())
                 test_pred.extend(binary_label)
                 test_score.extend(y_scores)
-                # for j in test_label.cpu().numpy():
-                #     test_true.append(j)
-                # for k in binary_label:
-                #     test_pred.append(k)
-                # for l in y_scores:
-                #     test_score.append(l)
 
         fpr, tpr, _ = roc_curve(test_true,test_score)
         eval_auroc = auc(fpr, tpr)
@@ -282,12 +271,7 @@ def eval(model,test_dataloader,save_path,model_name,criterion,device):
             test_true.extend(test_label.cpu().numpy())
             test_pred.extend(binary_label)
             test_score.extend(y_scores)
-            # for j in test_label.cpu().numpy():
-            #     test_true.append(j)
-            # for k in binary_label:
-            #     test_pred.append(k)
-            # for l in y_scores:
-            #     test_score.append(l)
+
 
         fpr, tpr, _ = roc_curve(test_true,test_score)
         eval_auroc = auc(fpr, tpr)

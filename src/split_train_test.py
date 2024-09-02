@@ -53,7 +53,6 @@ def get_train_test_data(peaks_file,nopeaks_file,fasta,outpath,seq_len=256,slide=
     #提取peaks
     df = pd.read_table(peaks_file, header=None)
     df.columns = ['chr', 'start', 'end', 'name', 'score', 'strand', 'signalValue', 'pValue', 'qValue', 'peak']
-    # df.sort_values(by="signalValue",ascending=False,inplace=True)
     bed_peaks = open(peaks_file).readlines()
 
     train_data_pos = []
@@ -78,14 +77,7 @@ def get_train_test_data(peaks_file,nopeaks_file,fasta,outpath,seq_len=256,slide=
                 test_label_pos.append(1)
                     
 
-    # peaks_regions = []
-    # for line in df[(df["pValue"]>=10)&(df["signalValue"] > df["signalValue"].quantile(0.9))][["chr","start","end","peak"]].iloc:
-    #     chr = line.chr
-    #     start = int(line.start)
-    #     end = int(line.end)
-    #     peaks_mid = int(line.peak)
-    #     if chr in chroms and (start+peaks_mid-int(seq_len/2))<chromosomes[chr] and (start+peaks_mid+int(seq_len/2))<chromosomes[chr]:
-    #         peaks_regions.append([chr,start+peaks_mid-int(seq_len/2),start+peaks_mid+int(seq_len/2)])
+
     #提取nopeaks
 
     nopeaks_regions = []
@@ -116,12 +108,6 @@ def get_train_test_data(peaks_file,nopeaks_file,fasta,outpath,seq_len=256,slide=
 
     train_data = train_data_pos +train_data_neg
     train_label = train_label_pos + train_label_neg
-    # if len(train_data_neg) > 3*len(train_data_pos):
-    #     train_data = train_data_pos + random.choices(train_data_neg,k=len(train_data_pos))
-    #     train_label = train_label_pos + random.choices(train_label_neg,k=len(train_data_pos))
-    # else:
-    #     train_data = train_data_pos + random.choices(train_data_neg,k=len(train_data_pos))
-    #     train_label = train_label_pos + random.choices(train_label_neg,k=len(train_data_pos))
     print(len(test_data_neg),len(test_data_pos))
     test_data = test_data_pos + random.choices(test_data_neg,k=len(test_data_pos))
     test_label = test_label_pos + random.choices(test_label_neg,k=len(test_label_pos))

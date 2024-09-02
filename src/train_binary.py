@@ -45,7 +45,7 @@ def set_random_seed(random_seed = 40):
     torch.manual_seed(random_seed)
     torch.cuda.manual_seed(random_seed) 
     torch.cuda.manual_seed_all(random_seed)
-
+set_random_seed(args.seed)
 fasta_file = args.fasta
 
 fasta = pysam.FastaFile(fasta_file)
@@ -201,12 +201,7 @@ def train(model,train_dataloader,test_dataloader,optimizer,criterion,epochs,earl
                 test_true.extend(test_label.cpu().numpy())
                 test_pred.extend(binary_label)
                 test_score.extend(y_scores)
-                # for j in test_label.cpu().numpy():
-                #     test_true.append(j)
-                # for k in binary_label:
-                #     test_pred.append(k)
-                # for l in y_scores:
-                #     test_score.append(l)
+
 
         fpr, tpr, _ = roc_curve(test_true,test_score)
         eval_auroc = auc(fpr, tpr)
@@ -257,12 +252,7 @@ def eval(model,test_dataloader,save_path,model_name,criterion,device):
             test_true.extend(test_label.cpu().numpy())
             test_pred.extend(binary_label)
             test_score.extend(y_scores)
-            # for j in test_label.cpu().numpy():
-            #     test_true.append(j)
-            # for k in binary_label:
-            #     test_pred.append(k)
-            # for l in y_scores:
-            #     test_score.append(l)
+
 
         fpr, tpr, _ = roc_curve(test_true,test_score)
         eval_auroc = auc(fpr, tpr)
