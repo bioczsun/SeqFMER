@@ -43,7 +43,12 @@ cd .. && mkdir -p train_results/GM12878
 
 ### Segmentation of dataset
 ```shell
-python src/split_train_test.py --peaks data/GM12878/ENCFF470YYO.bed --nopeaks data/GM12878/nopeaks.bed --fasta data/ref/hg38.fa --len 600 --outpath data/GM12878
+python src/split_train_test.py \
+    --peaks data/GM12878/ENCFF470YYO.bed \
+    --nopeaks data/GM12878/nopeaks.bed \
+    --fasta data/ref/hg38.fa \
+    --len 600 \
+    --outpath data/GM12878
 ```
 
 
@@ -52,32 +57,85 @@ Scope of --model: DanQ ExplaiNN Basset DeepSEA SATORI CNN_Transformer CNN_Attent
 ```shell
 #DanQ
 for activate in relu exp;do
-python src/train_binary.py --data data/GM12878/train_test_allneg_600.npz --model DanQ --linear_units 29440 --activate $activate --device cuda:0 --fasta data/ref/hg38.fa --outpath train_results/GM12878 --seqlen 600 --seed 40 --batch 256 --lr 0.0001;
+    python src/train_binary.py \
+        --data data/GM12878/train_test_allneg_600.npz \
+        --model DanQ \
+        --linear_units 29440 \
+        --activate $activate \
+        --device cuda:0 \
+        --fasta data/ref/hg38.fa \
+        --outpath train_results/GM12878 \
+        --seqlen 600 --seed 40 \
+        --batch 256 --lr 0.0001;
 done
 
 #ExplaiNN
 for activate in relu exp;do
-python src/train_binary.py --data data/GM12878/train_test_allneg_600.npz --model ExplaiNN --linear_units 600 --activate $activate --device cuda:0 --fasta data/ref/hg38.fa --outpath train_results/GM12878 --seqlen 600 --seed 40 --batch 256 --lr 0.0001;
+    python src/train_binary.py \
+        --data data/GM12878/train_test_allneg_600.npz \
+        --model ExplaiNN \
+        --linear_units 600 \
+        --activate $activate \
+        --device cuda:0 \
+        --fasta data/ref/hg38.fa \
+        --outpath train_results/GM12878 \
+        --seqlen 600 --seed 40 \
+        --batch 256 --lr 0.0001;
 done
 
 #Basset
 for activate in relu exp;do
-python src/train_binary.py --data data/GM12878/train_test_allneg_600.npz --model Basset --linear_units 14600 --activate $activate --device cuda:0 --fasta data/ref/hg38.fa --outpath train_results/GM12878 --seqlen 600 --seed 40 --batch 4096 --lr 0.0001;
+    python src/train_binary.py \
+        --data data/GM12878/train_test_allneg_600.npz \
+        --model Basset \
+        --linear_units 14600 \
+        --activate $activate \
+        --device cuda:0 \
+        --fasta data/ref/hg38.fa \
+        --outpath train_results/GM12878 \
+        --seqlen 600 --seed 40 \
+        --batch 256 --lr 0.0001;
 done
 ```
 
 ### Evaluation of integration models
 ```shell
-python src/train_binary_grim.py --data data/GM12878/train_test_allneg_600.npz --model DanQ_ExplaiNN --linear_units 14600 --device cuda:0 --fasta data/ref/hg38.fa --outpath train_results/GM12878 --activate exp --seqlen 600 --seed 40 --batch 128 --lr 0.0001;
+python src/train_binary_grim.py \
+    --data data/GM12878/train_test_allneg_600.npz \
+    --model DanQ_ExplaiNN \
+    --linear_units 14600 \
+    --device cuda:0 \
+    --fasta data/ref/hg38.fa \
+    --outpath train_results/GM12878 \
+    --activate exp \
+    --seqlen 600 --seed 40 \
+    --batch 128 --lr 0.0001;
 ```
 
 
 
 ### Model interpretability
 ```shell
-python src/explain.py --data data/GM12878/train_test_allneg_600.npz --model Basset --activate relu --device cuda:0 --fasta data/ref/hg38.fa --model_dir train_results/GM12878 --outpath evaluate_explainer/meme --phase GM12878 --seqlen 600 --seed 40 --batch 4096 --lr 0.0001;
+python src/explain.py \
+    --data data/GM12878/train_test_allneg_600.npz \
+    --model Basset \
+    --activate relu \
+    --device cuda:0 \
+    --fasta data/ref/hg38.fa \
+    --model_dir train_results/GM12878 \
+    --outpath evaluate_explainer/meme \
+    --phase GM12878 \
+    --seqlen 600 --seed 40 \
+    --batch 4096 --lr 0.0001;
 
 mkdir -p evaluate_explainer/meme/600/GM12878/relu/Basset
 
-tomtom -no-ssc evaluate_explainer/meme/600/motif_GM12878_Basset_relu.meme -verbosity 2 -min-overlap 5 -dist pearson -evalue -thresh 10.0 -oc evaluate_explainer/meme/600/GM12878/relu/Basset -eps  data/ref/JASPAR2022_CORE_vertebrates_non-redundant_v2.meme
+tomtom -no-ssc evaluate_explainer/meme/600/motif_GM12878_Basset_relu.meme \
+    -verbosity 2 \
+    -min-overlap 5 \
+    -dist pearson \
+    -evalue \
+    -thresh 10.0 \
+    -oc evaluate_explainer/meme/600/GM12878/relu/Basset \
+    -eps data/ref/JASPAR2022_CORE_vertebrates_non-redundant_v2.meme
 ```
