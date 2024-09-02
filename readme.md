@@ -1,407 +1,70 @@
-测试测试
+## 环境配置
+
+```shell
+git clone https://github.com/bioczsun/SeqFMER.git
+conda create -n SeqFMER python=3.11
+conda activate SeqFMER
+conda install mamba -y
+mamba install pytorch torchvision torchaudio pytorch-cuda=11.8  -c pytorch -c nvidia
+mamba install captum jupyter pandas pysam bedtools bedops pybigwig scikit-learn matplotlib -c conda-forge  -c bioconda
+```
+
 # Binary class model
 
 ## process genome fasta file
 ```shell
-#Generate a bed file with 1024bp windows
-bedtools makewindows -g genome.chroms_size -w 4096 > genome.windows.bed
+cd data
+#Generate a bed file with 4096bp windows
+bedtools makewindows -g ref/hg38.chrom.size -w 4096 > ref/hg38_4096.bed
+# bedtools makewindows -g genome.chroms_size -w 4096 > genome.windows.bed
 
 #Sort the bed file
-sort -k1,1 -k2,2n genome.windows.bed > genome.windows.sorted.bed
+sort -k1,1 -k2,2n ref/hg38_4096.bed > ref/hg38_4096_sorted.bed
+# sort -k1,1 -k2,2n genome.windows.bed > genome.windows.sorted.bed
 ```
 
-## Generate assumed inactivate regions
-```shell
-bedops -n 1 genome.windows.sorted.bed peaks.bed > inactivate.bed
-```
+
 **Ideas** 如何排除GC含量对结果的影响？
 
 ## 生成负样本
 ```shell
-# 解压bed.gz文件
-for i in GM12878 IMR-90  K562  kidney  liver  T-cell;do
-gunzip $i/*.bed.gz;
-done
 
 # 生成负样本
-for i in GM12878 IMR-90  K562  kidney  liver  T-cell;do
-bedops -n 1 hg38_4096_sort.bed $i/EN*.bed >  $i/nopeaks.bed;
-done
+bedops -n 1 ref/hg38_4096_sorted.bed GM12878/ENCFF470YYO.bed > GM12878/nopeaks.bed;
 
-for i in GM12878 IMR-90  K562  kidney  liver  T-cell;do
-mkdir /home/suncz/work/part1/code/NCBenchmark/train_results/$i;
-done
+cd ..
+
+mkdir -p train_results/GM12878;
+
 
 ```
 
 ## 划分数据集
 ```shell
-for i in GM12878 IMR-90  K562  kidney  liver  T-cell;do
-python /home/suncz/work/part1/code/NCBenchmark/code/split_train_test.py --peaks $i/${i}.bed --nopeaks $i/nopeaks.bed --fasta /home/suncz/genome_index/hg38/hg38.fa --len 200 --outpath /home/suncz/work/part1/code/NCBenchmark/data/$i/;done
+python src/split_train_test.py --peaks data/GM12878/ENCFF470YYO.bed --nopeaks data/GM12878/nopeaks.bed --fasta data/ref/hg38.fa --len 600 --outpath data/GM12878
 ```
 
 
-
-<!-- ```shell
-for i in 2-cell  4-cell  8-cell  icm  mESC;do
-python /mnt/d/work/2023/1/version1/split_train_test.py --peaks /mnt/d/work/2023/1/embryo/mouse/$i/${i}_peaks.narrowPeak --nopeaks
-done
-``` -->
-
-linear_units_dict = {
-    "DeepSEA": {
-        "200bp": 35520,
-        "400bp": 83520,
-        "600bp": 131520,
-        "800bp": 179520,
-        "1000bp": 227520
-    },
-    "Basset": {
-        "200bp": 4600,
-        "400bp": 9600,
-        "600bp": 14600,
-        "800bp": 19600,
-        "1000bp": 24600
-    },
-    "DanQ": {
-        "200bp": 9600,
-        "400bp": 19200,
-        "600bp": 29440,
-        "800bp": 39040,
-        "1000bp": 48640
-    },
-    "ExplaiNN": {
-        "200bp": 200,
-        "400bp": 400,
-        "600bp": 600,
-        "800bp": 800,
-        "1000bp": 1000
-    },
-    "SATORI": {
-        "200bp": 10240,
-        "400bp": 20480,
-        "600bp": 30720,
-        "800bp": 40960,
-        "1000bp": 51200
-    },
-    "CNN_Transformer": {
-        "200bp": 6000,
-        "400bp": 12000,
-        "600bp": 18000,
-        "800bp": 24000,
-        "1000bp": 30000
-    },
-    "CNN_Attention": {
-        "200bp": 6000,
-        "400bp": 12000,
-        "600bp": 18000,
-        "800bp": 24000,
-        "1000bp": 30000
-    },
-    "CNN": {
-        "200bp": 9900,
-        "400bp": 19800,
-        "600bp": 30000,
-        "800bp": 39900,
-        "1000bp": 49800
-    }
-}
 ## 评估模型在600bp输入序列长度的性能(二分类)
 ```shell
 
-for i in GM12878 IMR-90  K562  kidney  liver  T-cell;do
-python /home/suncz/work/part1/code/NCBenchmark/code/train_binary.py --data /home/suncz/work/part1/code/NCBenchmark/data/$i/train_test_600.npz --model ExplaiNN --linear_units 600 --activate relu --device cuda:0 --fasta /home/suncz/genome_index/hg38/hg38.fa --outpath /home/suncz/work/part1/code/NCBenchmark/train_results/$i --seqlen 600 --seed 40 --batch 256 --lr 0.0001;done
-
-#Basset
-for activate in relu exp;do
-for i in GM12878 IMR-90  K562  kidney  liver  T-cell;do
-python /home/suncz/work/part1/code/NCBenchmark/code/train_binary.py --data /home/suncz/work/part1/code/NCBenchmark/data/$i/train_test_600.npz --model Basset --linear_units 14600 --activate $activate --device cuda:0 --fasta /home/suncz/genome_index/hg38/hg38.fa --outpath /home/suncz/work/part1/code/NCBenchmark/train_results/$i --seqlen 600 --seed 40 --batch 256 --lr 0.0001;done
-done
-
-#DeepSEA
-for activate in relu exp;do
-for i in GM12878 IMR-90  K562  kidney  liver  T-cell;do
-python /home/suncz/work/part1/code/NCBenchmark/code/train_binary.py --data /home/suncz/work/part1/code/NCBenchmark/data/$i/train_test_600.npz --model DeepSEA --linear_units 131520 --activate $activate --device cuda:1 --fasta /home/suncz/genome_index/hg38/hg38.fa --outpath /home/suncz/work/part1/code/NCBenchmark/train_results/$i --seqlen 600 --seed 40 --batch 256 --lr 0.0001;done
-done
-
 #DanQ
+# --model: ExplaiNN Basset DeepSEA SATORI CNN_Transformer CNN_Attention CNN
 for activate in relu exp;do
-for i in GM12878 IMR-90  K562  kidney  liver  T-cell;do
-python /home/suncz/work/part1/code/NCBenchmark/code/train_binary.py --data /home/suncz/work/part1/code/NCBenchmark/data/$i/train_test_600.npz --model DanQ --linear_units 29440 --activate $activate --device cuda:0 --fasta /home/suncz/genome_index/hg38/hg38.fa --outpath /home/suncz/work/part1/code/NCBenchmark/train_results/$i --seqlen 600 --seed 40 --batch 256 --lr 0.0001;done
+python src/train_binary.py --data data/GM12878/train_test_allneg_600.npz --model DanQ --linear_units 29440 --activate $activate --device cuda:0 --fasta data/ref/hg38.fa --outpath train_results/GM12878 --seqlen 600 --seed 40 --batch 256 --lr 0.0001;
 done
 
 #ExplaiNN
 for activate in relu exp;do
-for i in GM12878 IMR-90  K562  kidney  liver  T-cell;do
-python /home/suncz/work/part1/code/NCBenchmark/code/train_binary.py --data /home/suncz/work/part1/code/NCBenchmark/data/$i/train_test_600.npz --model ExplaiNN --linear_units 600 --activate $activate --device cuda:0 --fasta /home/suncz/genome_index/hg38/hg38.fa --outpath /home/suncz/work/part1/code/NCBenchmark/train_results/$i --seqlen 600 --seed 40 --batch 256 --lr 0.0001;done
-done    
-
-#SATORI
-for activate in relu exp;do
-for i in GM12878 IMR-90  K562  kidney  liver  T-cell;do
-python /home/suncz/work/part1/code/NCBenchmark/code/train_binary.py --data /home/suncz/work/part1/code/NCBenchmark/data/$i/train_test_600.npz --model SATORI --linear_units 30720 --activate $activate --device cuda:0 --fasta /home/suncz/genome_index/hg38/hg38.fa --outpath /home/suncz/work/part1/code/NCBenchmark/train_results/$i --seqlen 600 --seed 40 --batch 256 --lr 0.0001;done
+python src/train_binary.py --data data/GM12878/train_test_allneg_600.npz --model ExplaiNN --linear_units 600 --activate $activate --device cuda:0 --fasta data/ref/hg38.fa --outpath train_results/GM12878 --seqlen 600 --seed 40 --batch 256 --lr 0.0001;
 done
-
-#CNN_Transformer
-for activate in relu exp;do
-for i in GM12878 IMR-90  K562  kidney  liver  T-cell;do
-python /home/suncz/work/part1/code/NCBenchmark/code/train_binary.py --data /home/suncz/work/part1/code/NCBenchmark/data/$i/train_test_600.npz --model CNN_Transformer --linear_units 18000 --activate $activate --device cuda:2 --fasta /home/suncz/genome_index/hg38/hg38.fa --outpath /home/suncz/work/part1/code/NCBenchmark/train_results/$i --seqlen 600 --seed 40 --batch 256 --lr 0.0001;done
-done
-
-#CNN_Attention
-for activate in relu exp;do
-for i in GM12878 IMR-90  K562  kidney  liver  T-cell;do
-python /home/suncz/work/part1/code/NCBenchmark/code/train_binary.py --data /home/suncz/work/part1/code/NCBenchmark/data/$i/train_test_600.npz --model CNN_Attention --linear_units 18000 --activate $activate --device cuda:1 --fasta /home/suncz/genome_index/hg38/hg38.fa --outpath /home/suncz/work/part1/code/NCBenchmark/train_results/$i --seqlen 600 --seed 40 --batch 256 --lr 0.0001;done
-done
-
-#CNN
-for activate in relu exp;do
-for i in GM12878 IMR-90  K562  kidney  liver  T-cell;do
-python /home/suncz/work/part1/code/NCBenchmark/code/train_binary.py --data /home/suncz/work/part1/code/NCBenchmark/data/$i/train_test_600.npz --model CNN --linear_units 30000 --activate $activate --device cuda:1 --fasta /home/suncz/genome_index/hg38/hg38.fa --outpath /home/suncz/work/part1/code/NCBenchmark/train_results/$i --seqlen 600 --seed 40 --batch 256 --lr 0.0001;done
-done
-
-
-for i in GM12878  T-cell;do
-python /home/suncz/work/part1/code/NCBenchmark/code/train_binary_grim.py --data /home/suncz/work/part1/code/NCBenchmark/data/$i/train_test_600.npz --model GRIM --linear_units 14600 --device cuda:0 --fasta /home/suncz/genome_index/hg38/hg38.fa --outpath /home/suncz/work/part1/code/NCBenchmark/train_results/$i --activate exp --seqlen 600 --seed 40 --batch 128 --lr 0.0001;done
 ```
 
-
-
-python /home/suncz/work/part1/code/NCBenchmark/finalcode/stat_train_time.py --data /home/suncz/work/part1/code/NCBenchmark/data/GM12878/train_test_1000.npz --model SATORI --linear_units 51200 --activate relu --device cuda:1 --fasta /home/suncz/genome_index/hg38/hg38.fa --outpath /home/suncz/work/part1/code/NCBenchmark/train_results/GM12878 --seqlen 1000 --seed 40 --batch 32 --lr 0.0001
-
-python /home/suncz/work/part1/code/NCBenchmark/finalcode/stat_train_time.py --data /home/suncz/work/part1/code/NCBenchmark/data/GM12878/train_test_200.npz --model CNN --linear_units 19800 --activate relu --device cuda:2 --fasta /home/suncz/genome_index/hg38/hg38.fa --outpath /home/suncz/work/part1/code/NCBenchmark/train_results/GM12878 --seqlen 200 --seed 40 --batch 32 --lr 0.0001
-
-## 评估不同输入序列长度
-```shell
-
-#DeepSEA
-
-##200bp
-for activate in relu exp;do
-for i in GM12878 IMR-90  K562  kidney  liver  T-cell;do
-python /home/suncz/work/part1/code/NCBenchmark/code/train_binary.py --data /home/suncz/work/part1/code/NCBenchmark/data/$i/train_test_200.npz --model DeepSEA --linear_units 35520 --activate $activate --device cuda:1 --fasta /home/suncz/genome_index/hg38/hg38.fa --outpath /home/suncz/work/part1/code/NCBenchmark/train_results/$i --seqlen 200 --seed 40 --batch 256 --lr 0.0001;done
-done
-
-##400bp
-for activate in relu exp;do
-for i in GM12878 IMR-90  K562  kidney  liver  T-cell;do
-python /home/suncz/work/part1/code/NCBenchmark/code/train_binary.py --data /home/suncz/work/part1/code/NCBenchmark/data/$i/train_test_400.npz --model DeepSEA --linear_units 83520 --activate $activate --device cuda:0 --fasta /home/suncz/genome_index/hg38/hg38.fa --outpath /home/suncz/work/part1/code/NCBenchmark/train_results/$i --seqlen 400 --seed 40 --batch 256 --lr 0.0001;done
-done
-
-##800bp
-for activate in relu exp;do
-for i in GM12878 IMR-90  K562  kidney  liver  T-cell;do
-python /home/suncz/work/part1/code/NCBenchmark/code/train_binary.py --data /home/suncz/work/part1/code/NCBenchmark/data/$i/train_test_800.npz --model DeepSEA --linear_units 179520 --activate $activate --device cuda:1 --fasta /home/suncz/genome_index/hg38/hg38.fa --outpath /home/suncz/work/part1/code/NCBenchmark/train_results/$i --seqlen 800 --seed 40 --batch 256 --lr 0.0001;done
-done
-
-##1000bp
-for activate in relu exp;do
-for i in GM12878 IMR-90  K562  kidney  liver  T-cell;do
-python /home/suncz/work/part1/code/NCBenchmark/code/train_binary.py --data /home/suncz/work/part1/code/NCBenchmark/data/$i/train_test_1000.npz --model DeepSEA --linear_units 227520 --activate $activate --device cuda:1 --fasta /home/suncz/genome_index/hg38/hg38.fa --outpath /home/suncz/work/part1/code/NCBenchmark/train_results/$i --seqlen 1000 --seed 40 --batch 256 --lr 0.0001;done
-done
-
-#Basset
-##200bp
-for activate in relu exp;do
-for i in GM12878 IMR-90  K562  kidney  liver  T-cell;do
-python /home/suncz/work/part1/code/NCBenchmark/code/train_binary.py --data /home/suncz/work/part1/code/NCBenchmark/data/$i/train_test_200.npz --model Basset --linear_units 4600 --activate $activate --device cuda:1 --fasta /home/suncz/genome_index/hg38/hg38.fa --outpath /home/suncz/work/part1/code/NCBenchmark/train_results/$i --seqlen 200 --seed 40 --batch 256 --lr 0.0001;done
-done
-
-##400bp
-for activate in relu exp;do
-for i in GM12878 IMR-90  K562  kidney  liver  T-cell;do
-python /home/suncz/work/part1/code/NCBenchmark/code/train_binary.py --data /home/suncz/work/part1/code/NCBenchmark/data/$i/train_test_400.npz --model Basset --linear_units 9600 --activate $activate --device cuda:1 --fasta /home/suncz/genome_index/hg38/hg38.fa --outpath /home/suncz/work/part1/code/NCBenchmark/train_results/$i --seqlen 400 --seed 40 --batch 256 --lr 0.0001;done
-done
-
-##800bp
-for activate in relu exp;do
-for i in GM12878 IMR-90  K562  kidney  liver  T-cell;do
-python /home/suncz/work/part1/code/NCBenchmark/code/train_binary.py --data /home/suncz/work/part1/code/NCBenchmark/data/$i/train_test_800.npz --model Basset --linear_units 19600 --activate $activate --device cuda:0 --fasta /home/suncz/genome_index/hg38/hg38.fa --outpath /home/suncz/work/part1/code/NCBenchmark/train_results/$i --seqlen 800 --seed 40 --batch 256 --lr 0.0001;done
-done
-
-##1000bp
-for activate in relu exp;do
-for i in GM12878 IMR-90  K562  kidney  liver  T-cell;do
-python /home/suncz/work/part1/code/NCBenchmark/code/train_binary.py --data /home/suncz/work/part1/code/NCBenchmark/data/$i/train_test_1000.npz --model Basset --linear_units 24600 --activate $activate --device cuda:0 --fasta /home/suncz/genome_index/hg38/hg38.fa --outpath /home/suncz/work/part1/code/NCBenchmark/train_results/$i --seqlen 1000 --seed 40 --batch 256 --lr 0.0001;done
-done
-
-#DanQ
-##200bp
-for activate in relu exp;do
-for i in GM12878 IMR-90  K562  kidney  liver  T-cell;do
-python /home/suncz/work/part1/code/NCBenchmark/code/train_binary.py --data /home/suncz/work/part1/code/NCBenchmark/data/$i/train_test_200.npz --model DanQ --linear_units 9600 --activate $activate --device cuda:1 --fasta /home/suncz/genome_index/hg38/hg38.fa --outpath /home/suncz/work/part1/code/NCBenchmark/train_results/$i --seqlen 200 --seed 40 --batch 256 --lr 0.001;done
-done
-
-##400bp
-for activate in relu exp;do
-for i in GM12878 IMR-90  K562  kidney  liver  T-cell;do
-python /home/suncz/work/part1/code/NCBenchmark/code/train_binary.py --data /home/suncz/work/part1/code/NCBenchmark/data/$i/train_test_400.npz --model DanQ --linear_units 19200 --activate $activate --device cuda:0 --fasta /home/suncz/genome_index/hg38/hg38.fa --outpath /home/suncz/work/part1/code/NCBenchmark/train_results/$i --seqlen 400 --seed 40 --batch 256 --lr 0.001;done
-done
-
-##600bp
-for activate in relu exp;do
-for i in GM12878 IMR-90  K562  kidney  liver  T-cell;do
-python /home/suncz/work/part1/code/NCBenchmark/code/train_binary.py --data /home/suncz/work/part1/code/NCBenchmark/data/$i/train_test_600.npz --model DanQ --linear_units 29440 --activate $activate --device cuda:0 --fasta /home/suncz/genome_index/hg38/hg38.fa --outpath /home/suncz/work/part1/code/NCBenchmark/train_results/$i --seqlen 600 --seed 40 --batch 256 --lr 0.001;done
-done
-
-##800bp
-for activate in relu exp;do
-for i in GM12878 IMR-90  K562  kidney  liver  T-cell;do
-python /home/suncz/work/part1/code/NCBenchmark/code/train_binary.py --data /home/suncz/work/part1/code/NCBenchmark/data/$i/train_test_800.npz --model DanQ --linear_units 39040 --activate $activate --device cuda:0 --fasta /home/suncz/genome_index/hg38/hg38.fa --outpath /home/suncz/work/part1/code/NCBenchmark/train_results/$i --seqlen 800 --seed 40 --batch 256 --lr 0.001;done
-done
-
-##1000bp
-for activate in relu exp;do
-for i in GM12878 IMR-90  K562  kidney  liver  T-cell;do
-python /home/suncz/work/part1/code/NCBenchmark/code/train_binary.py --data /home/suncz/work/part1/code/NCBenchmark/data/$i/train_test_1000.npz --model DanQ --linear_units 48640 --activate $activate --device cuda:0 --fasta /home/suncz/genome_index/hg38/hg38.fa --outpath /home/suncz/work/part1/code/NCBenchmark/train_results/$i --seqlen 1000 --seed 40 --batch 256 --lr 0.001;done
-done
-
-#ExplaiNN
-##200bp
-for activate in relu exp;do
-for i in GM12878 IMR-90  K562  kidney  liver  T-cell;do
-python /home/suncz/work/part1/code/NCBenchmark/code/train_binary.py --data /home/suncz/work/part1/code/NCBenchmark/data/$i/train_test_200.npz --model ExplaiNN --linear_units 200 --activate $activate --device cuda:1 --fasta /home/suncz/genome_index/hg38/hg38.fa --outpath /home/suncz/work/part1/code/NCBenchmark/train_results/$i --seqlen 200 --seed 40 --batch 256 --lr 0.0001;done
-done
-
-##400bp
-for activate in relu exp;do
-for i in GM12878 IMR-90  K562  kidney  liver  T-cell;do
-python /home/suncz/work/part1/code/NCBenchmark/code/train_binary.py --data /home/suncz/work/part1/code/NCBenchmark/data/$i/train_test_400.npz --model ExplaiNN --linear_units 400 --activate $activate --device cuda:0 --fasta /home/suncz/genome_index/hg38/hg38.fa --outpath /home/suncz/work/part1/code/NCBenchmark/train_results/$i --seqlen 400 --seed 40 --batch 256 --lr 0.0001;done
-done
-
-for activate in relu exp;do
-for i in GM12878  T-cell;do
-python /home/suncz/work/part1/code/NCBenchmark/code/train_binary.py --data /home/suncz/work/part1/code/NCBenchmark/data/$i/train_test_400.npz --model ExplaiNN --linear_units 400 --activate $activate --device cuda:0 --fasta /home/suncz/genome_index/hg38/hg38.fa --outpath /home/suncz/work/part1/code/NCBenchmark/train_results/$i --seqlen 400 --seed 40 --batch 256 --lr 0.0001;done
-done
-
-
-##600bp
-for activate in relu exp;do
-for i in GM12878 IMR-90  K562  kidney  liver  T-cell;do
-python /home/suncz/work/part1/code/NCBenchmark/code/train_binary.py --data /home/suncz/work/part1/code/NCBenchmark/data/$i/train_test_600.npz --model ExplaiNN --linear_units 600 --activate $activate --device cuda:0 --fasta /home/suncz/genome_index/hg38/hg38.fa --outpath /home/suncz/work/part1/code/NCBenchmark/train_results/$i --seqlen 600 --seed 40 --batch 256 --lr 0.0001;done
-done
-
-##800bp
-for activate in relu exp;do
-for i in GM12878 IMR-90  K562  kidney  liver  T-cell;do
-python /home/suncz/work/part1/code/NCBenchmark/code/train_binary.py --data /home/suncz/work/part1/code/NCBenchmark/data/$i/train_test_800.npz --model ExplaiNN --linear_units 800 --activate $activate --device cuda:1 --fasta /home/suncz/genome_index/hg38/hg38.fa --outpath /home/suncz/work/part1/code/NCBenchmark/train_results/$i --seqlen 800 --seed 40 --batch 256 --lr 0.0001;done
-done
-
-##1000bp
-for activate in relu exp;do
-for i in GM12878 IMR-90  K562  kidney  liver  T-cell;do
-python /home/suncz/work/part1/code/NCBenchmark/code/train_binary.py --data /home/suncz/work/part1/code/NCBenchmark/data/$i/train_test_1000.npz --model ExplaiNN --linear_units 1000 --activate $activate --device cuda:1 --fasta /home/suncz/genome_index/hg38/hg38.fa --outpath /home/suncz/work/part1/code/NCBenchmark/train_results/$i --seqlen 1000 --seed 40 --batch 256 --lr 0.0001;done
-done
-
-#SATORI
-##200bp
-
-for activate in relu exp;do
-for i in GM12878 IMR-90  K562  kidney  liver  T-cell;do
-python /home/suncz/work/part1/code/NCBenchmark/code/train_binary.py --data /home/suncz/work/part1/code/NCBenchmark/data/$i/train_test_200.npz --model SATORI --linear_units 10240 --activate $activate --device cuda:1 --fasta /home/suncz/genome_index/hg38/hg38.fa --outpath /home/suncz/work/part1/code/NCBenchmark/train_results/$i --seqlen 200 --seed 40 --batch 256 --lr 0.0001;done
-done
-
-##400bp
-for activate in relu exp;do
-for i in GM12878 IMR-90  K562  kidney  liver  T-cell;do
-python /home/suncz/work/part1/code/NCBenchmark/code/train_binary.py --data /home/suncz/work/part1/code/NCBenchmark/data/$i/train_test_400.npz --model SATORI --linear_units 20480 --activate $activate --device cuda:1 --fasta /home/suncz/genome_index/hg38/hg38.fa --outpath /home/suncz/work/part1/code/NCBenchmark/train_results/$i --seqlen 400 --seed 40 --batch 256 --lr 0.0001;done
-done
-
-##800bp
-for activate in relu exp;do
-for i in GM12878 IMR-90  K562  kidney  liver  T-cell;do
-python /home/suncz/work/part1/code/NCBenchmark/code/train_binary.py --data /home/suncz/work/part1/code/NCBenchmark/data/$i/train_test_800.npz --model SATORI --linear_units 40960 --activate $activate --device cuda:0 --fasta /home/suncz/genome_index/hg38/hg38.fa --outpath /home/suncz/work/part1/code/NCBenchmark/train_results/$i --seqlen 800 --seed 40 --batch 256 --lr 0.0001;done
-done
-
-##1000bp
-for activate in relu exp;do
-for i in GM12878 IMR-90  K562  kidney  liver  T-cell;do
-python /home/suncz/work/part1/code/NCBenchmark/code/train_binary.py --data /home/suncz/work/part1/code/NCBenchmark/data/$i/train_test_1000.npz --model SATORI --linear_units 51200 --activate $activate --device cuda:0 --fasta /home/suncz/genome_index/hg38/hg38.fa --outpath /home/suncz/work/part1/code/NCBenchmark/train_results/$i --seqlen 1000 --seed 40 --batch 256 --lr 0.0001;done
-done
-
-##CNN_Transformer
-##200bp
-for activate in relu exp;do
-for i in GM12878 IMR-90  K562  kidney  liver  T-cell;do
-python /home/suncz/work/part1/code/NCBenchmark/code/train_binary.py --data /home/suncz/work/part1/code/NCBenchmark/data/$i/train_test_200.npz --model CNN_Transformer --linear_units 6000 --activate $activate --device cuda:1 --fasta /home/suncz/genome_index/hg38/hg38.fa --outpath /home/suncz/work/part1/code/NCBenchmark/train_results/$i --seqlen 200 --seed 40 --batch 256 --lr 0.0001;done
-done
-
-##400bp
-for activate in relu exp;do
-for i in GM12878 IMR-90  K562  kidney  liver  T-cell;do
-python /home/suncz/work/part1/code/NCBenchmark/code/train_binary.py --data /home/suncz/work/part1/code/NCBenchmark/data/$i/train_test_400.npz --model CNN_Transformer --linear_units 12000 --activate $activate --device cuda:1 --fasta /home/suncz/genome_index/hg38/hg38.fa --outpath /home/suncz/work/part1/code/NCBenchmark/train_results/$i --seqlen 400 --seed 40 --batch 256 --lr 0.0001;done
-done
-
-##800bp
-for activate in relu exp;do
-for i in GM12878 IMR-90  K562  kidney  liver  T-cell;do
-python /home/suncz/work/part1/code/NCBenchmark/code/train_binary.py --data /home/suncz/work/part1/code/NCBenchmark/data/$i/train_test_800.npz --model CNN_Transformer --linear_units 24000 --activate $activate --device cuda:1 --fasta /home/suncz/genome_index/hg38/hg38.fa --outpath /home/suncz/work/part1/code/NCBenchmark/train_results/$i --seqlen 800 --seed 40 --batch 256 --lr 0.0001;done
-done
-
-##1000bp
-for activate in relu exp;do
-for i in GM12878 IMR-90  K562  kidney  liver  T-cell;do
-python /home/suncz/work/part1/code/NCBenchmark/code/train_binary.py --data /home/suncz/work/part1/code/NCBenchmark/data/$i/train_test_1000.npz --model CNN_Transformer --linear_units 30000 --activate $activate --device cuda:1 --fasta /home/suncz/genome_index/hg38/hg38.fa --outpath /home/suncz/work/part1/code/NCBenchmark/train_results/$i --seqlen 1000 --seed 40 --batch 256 --lr 0.0001;done
-done
-
-##CNN_Attention
-##200bp
-for activate in relu exp;do
-for i in GM12878 IMR-90  K562  kidney  liver  T-cell;do
-python /home/suncz/work/part1/code/NCBenchmark/code/train_binary.py --data /home/suncz/work/part1/code/NCBenchmark/data/$i/train_test_200.npz --model CNN_Attention --linear_units 6000 --activate $activate --device cuda:1 --fasta /home/suncz/genome_index/hg38/hg38.fa --outpath /home/suncz/work/part1/code/NCBenchmark/train_results/$i --seqlen 200 --seed 40 --batch 256 --lr 0.0001;done
-done
-
-##400bp
-for activate in relu exp;do
-for i in GM12878 IMR-90  K562  kidney  liver  T-cell;do
-python /home/suncz/work/part1/code/NCBenchmark/code/train_binary.py --data /home/suncz/work/part1/code/NCBenchmark/data/$i/train_test_400.npz --model CNN_Attention --linear_units 12000 --activate $activate --device cuda:1 --fasta /home/suncz/genome_index/hg38/hg38.fa --outpath /home/suncz/work/part1/code/NCBenchmark/train_results/$i --seqlen 400 --seed 40 --batch 256 --lr 0.0001;done
-done
-
-##800bp
-for activate in relu exp;do
-for i in GM12878 IMR-90  K562  kidney  liver  T-cell;do
-python /home/suncz/work/part1/code/NCBenchmark/code/train_binary.py --data /home/suncz/work/part1/code/NCBenchmark/data/$i/train_test_800.npz --model CNN_Attention --linear_units 24000 --activate $activate --device cuda:1 --fasta /home/suncz/genome_index/hg38/hg38.fa --outpath /home/suncz/work/part1/code/NCBenchmark/train_results/$i --seqlen 800 --seed 40 --batch 256 --lr 0.0001;done
-done
-
-##1000bp
-for activate in relu exp;do
-for i in GM12878 IMR-90  K562  kidney  liver  T-cell;do
-python /home/suncz/work/part1/code/NCBenchmark/code/train_binary.py --data /home/suncz/work/part1/code/NCBenchmark/data/$i/train_test_1000.npz --model CNN_Attention --linear_units 30000 --activate $activate --device cuda:1 --fasta /home/suncz/genome_index/hg38/hg38.fa --outpath /home/suncz/work/part1/code/NCBenchmark/train_results/$i --seqlen 1000 --seed 40 --batch 256 --lr 0.0001;done
-done
-
-##CNN
-##200bp
-for activate in relu exp;do
-for i in GM12878 IMR-90  K562  kidney  liver  T-cell;do
-python /home/suncz/work/part1/code/NCBenchmark/code/train_binary.py --data /home/suncz/work/part1/code/NCBenchmark/data/$i/train_test_200.npz --model CNN --linear_units 9900 --activate $activate --device cuda:0 --fasta /home/suncz/genome_index/hg38/hg38.fa --outpath /home/suncz/work/part1/code/NCBenchmark/train_results/$i --seqlen 200 --seed 40 --batch 256 --lr 0.0001;done
-done
-
-##400bp
-for activate in relu exp;do
-for i in GM12878 IMR-90  K562  kidney  liver  T-cell;do
-python /home/suncz/work/part1/code/NCBenchmark/code/train_binary.py --data /home/suncz/work/part1/code/NCBenchmark/data/$i/train_test_400.npz --model CNN --linear_units 19800 --activate $activate --device cuda:0 --fasta /home/suncz/genome_index/hg38/hg38.fa --outpath /home/suncz/work/part1/code/NCBenchmark/train_results/$i --seqlen 400 --seed 40 --batch 256 --lr 0.0001;done
-done
-
-##800bp
-for activate in relu exp;do
-for i in GM12878 IMR-90  K562  kidney  liver  T-cell;do
-python /home/suncz/work/part1/code/NCBenchmark/code/train_binary.py --data /home/suncz/work/part1/code/NCBenchmark/data/$i/train_test_800.npz --model CNN --linear_units 39900 --activate $activate --device cuda:0 --fasta /home/suncz/genome_index/hg38/hg38.fa --outpath /home/suncz/work/part1/code/NCBenchmark/train_results/$i --seqlen 800 --seed 40 --batch 256 --lr 0.0001;done
-done
-
-##1000bp
-for activate in relu exp;do
-for i in GM12878 IMR-90  K562  kidney  liver  T-cell;do
-python /home/suncz/work/part1/code/NCBenchmark/code/train_binary.py --data /home/suncz/work/part1/code/NCBenchmark/data/$i/train_test_1000.npz --model CNN --linear_units 49800 --activate $activate --device cuda:0 --fasta /home/suncz/genome_index/hg38/hg38.fa --outpath /home/suncz/work/part1/code/NCBenchmark/train_results/$i --seqlen 1000 --seed 40 --batch 256 --lr 0.0001;done
-done
-
-
-```
 
 
 ### 评估集成模型
 ```shell
-for i in GM12878 T-cell;do 
-python /home/suncz/work/part1/code/NCBenchmark/code/train_binary_grim.py --data /home/suncz/work/embrys01/ATAC-seq/peaks/human/$i/${i}_peaks.narrowPeak_train_test_600.npz --model GRIM --linear_units 14600 --device cuda:0 --fasta /home/suncz/genome_index/hg19/hg19.fa --outpath /home/suncz/work/part1/code/NCBenchmark/train_results/Embryo/human/$i --activate exp --seqlen 600 --seed $seed --batch 128 --lr 0.0001;done;done
+python src/train_binary_grim.py --data data/GM12878/train_test_allneg_600.npz --model DanQ_ExplaiNN --linear_units 14600 --device cuda:0 --fasta data/ref/hg38.fa --outpath train_results/GM12878 --activate exp --seqlen 600 --seed 40 --batch 128 --lr 0.0001;
 ```
 
 
@@ -411,7 +74,9 @@ python /home/suncz/work/part1/code/NCBenchmark/code/train_binary_grim.py --data 
 
 ```shell
 #new
-for i in GM12878 IMR-90  K562  kidney  liver  T-cell;do python /home/suncz/work/part1/code/NCBenchmark/finalcode/split_train_test_coverage.py --peaks /home/suncz/work/part1/code/NCBenchmark/data/$i/${i}.bed --nopeaks /home/suncz/work/part1/code/NCBenchmark/data/$i/nopeaks.bed --len 400 --fasta /home/suncz/genome_index/hg38/hg38.fa --outpath /home/suncz/work/part1/code/NCBenchmark/data/$i;done
+for i in GM12878 IMR-90  K562  kidney  liver  T-cell;
+do python src/split_train_test_coverage.py --peaks data/GM12878/ENCFF470YYO.bed --nopeaks /home/suncz/work/part1/code/NCBenchmark/data/$i/nopeaks.bed --len 400 --fasta /home/suncz/genome_index/hg38/hg38.fa --outpath /home/suncz/work/part1/code/NCBenchmark/data/$i;
+done
 
 for i in GM12878 IMR-90  K562  kidney  liver  T-cell;do
 bedtools coverage -a /home/suncz/work/part1/code/NCBenchmark/data/$i/train_data_1000_coverage.bed -b /home/suncz/work/embrys01/benchmark/data/$i/${i}.bam > /home/suncz/work/part1/code/NCBenchmark/data/$i/train_data_1000_reads.bed;
