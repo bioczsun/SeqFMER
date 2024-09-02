@@ -332,45 +332,7 @@ class CNN(nn.Module):
         out = self.dense(out1)
         return out
 
-from xLSTM import mLSTM
 
-class DanQmLSTM(nn.Module):
-    def __init__(self,classes,linear_units,activate,*args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
-        if activate == 'relu':
-            activation = nn.ReLU()
-        elif activate == 'exp':
-            activation = ExpActivation()
-
-        self.conv1d = nn.Sequential(
-            nn.Conv1d(in_channels=4,out_channels=320,kernel_size=19,padding=9),
-            activation,
-            nn.MaxPool1d(kernel_size=13, stride=13),
-            nn.Dropout(0.2)
-        )
-        # self.lstm = nn.LSTM(input_size=320, hidden_size=320, num_layers=2, batch_first=True, bidirectional=True)
-        self.mlstm = mLSTM(input_size=320, hidden_size=320, num_layers=2)
-
-        self.fc = nn.Sequential(
-            nn.Linear(linear_units, 256),
-            nn.ReLU(),
-            nn.Dropout(0.3),
-            nn.Linear(256, classes)
-        )
-    
-    def forward(self, x):
-        x = self.conv1d(x)
-        x = x.permute(0,2,1)
-        out,_ = self.mlstm(x)
-        out = out.transpose(1,2)
-        out = out.contiguous().view(x.size()[0],-1)
-        out = self.fc(out)
-        return out
-
-
-# a = torch.randn(32,4,600)
-# model = DanQ(1,14720,"relu")
-# print(model(a).shape)
 
 class DanQ_ExplaiNN(nn.Module):
     def __init__(self,input_length,num_cnns,classes, *args, **kwargs) -> None:
